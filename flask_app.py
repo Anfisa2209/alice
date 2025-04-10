@@ -1,8 +1,6 @@
 from flask import Flask, request, jsonify
 import logging
 
-import json
-
 app = Flask(__name__)
 
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +20,6 @@ def main():
         }
     }
 
-
     handle_dialog(request.json, response)
 
     logging.info('Response: %r', request.json)
@@ -34,7 +31,6 @@ def handle_dialog(req, res):
     user_id = req['session']['user_id']
 
     if req['session']['new']:
-
         sessionStorage[user_id] = {
             'suggests': [
                 "Не хочу.",
@@ -54,7 +50,6 @@ def handle_dialog(req, res):
         'покупаю',
         'хорошо'
     ]:
-
         res['response']['text'] = 'Слона можно найти на Яндекс.Маркете!'
         res['response']['end_session'] = True
         return
