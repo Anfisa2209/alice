@@ -43,13 +43,11 @@ def handle_dialog(req, res):
         # Получим подсказки
         res['response']['buttons'] = get_suggests(user_id)
         return
-
-    if req['request']['original_utterance'].lower() in [
-        'ладно',
-        'куплю',
-        'покупаю',
-        'хорошо'
-    ]:
+    words = req['request']['nlu']['tokens']
+    if [word if word in ['ладно',
+                         'куплю',
+                         'покупаю',
+                         'хорошо'] else False for word in words]:
         res['response']['text'] = 'Слона можно найти на Яндекс.Маркете!'
         res['response']['end_session'] = True
         return
