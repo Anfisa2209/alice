@@ -42,7 +42,7 @@ def handle_dialog(req, res):
             ]
         }
         # Заполняем текст ответа
-        res['response']['text'] = f'Привет! Купи {animals[0]}!'
+        res['response']['text'] = f'Привет! Купи {animals[0]}а!'
         # Получим подсказки
         res['response']['buttons'] = get_suggests(user_id)
         return
