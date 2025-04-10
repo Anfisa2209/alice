@@ -6,6 +6,8 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 sessionStorage = {}
+animals = ['слон', "кролик", "кот"]
+current_animal_idx = 0
 
 
 @app.route('/post', methods=['POST'])
@@ -28,6 +30,7 @@ def main():
 
 
 def handle_dialog(req, res):
+    global current_animal_idx
     user_id = req['session']['user_id']
 
     if req['session']['new']:
@@ -39,20 +42,31 @@ def handle_dialog(req, res):
             ]
         }
         # Заполняем текст ответа
-        res['response']['text'] = 'Привет! Купи слона!'
+        res['response']['text'] = f'Привет! Купи {animals[0]}!'
         # Получим подсказки
         res['response']['buttons'] = get_suggests(user_id)
         return
     words = req['request']['nlu']['tokens']
-    if [word if word in ['ладно',
-                         'куплю',
-                         'покупаю',
-                         'хорошо'] else False for word in words]:
-        res['response']['text'] = 'Слона можно найти на Яндекс.Маркете!'
-        res['response']['end_session'] = True
+
+    if [word for word in words if word in ['ладно',
+                                           'куплю',
+                                           'покупаю',
+                                           'хорошо']]:
+        if current_animal_idx + 1 > len(animals):
+            res['response']['text'] = 'Все можно найти на Яндекс.Маркете!'
+            res['response']['end_session'] = True
+            return
+        current_animal_idx += 1
+        if len(animals) == current_animal_idx:
+            res['response']['text'] = 'Все можно найти на Яндекс.Маркете! Спасибо за покупки'
+            res['response']['end_session'] = True
+            return
+        res['response']['text'] = f'{animals[current_animal_idx - 1]}а можно найти на Яндекс.Маркете! ' \
+                                  f'А теперь купи {animals[current_animal_idx]}а'
+        res['response']['buttons'] = get_suggests(user_id)
         return
 
-    res['response']['text'] = 'Все говорят "%s", а ты купи слона!' % (
+    res['response']['text'] = f'Все говорят "%s", а ты купи {animals[current_animal_idx]}а!' % (
         req['request']['original_utterance']
     )
     res['response']['buttons'] = get_suggests(user_id)
@@ -72,7 +86,7 @@ def get_suggests(user_id):
     if len(suggests) < 2:
         suggests.append({
             "title": "Ладно",
-            "url": "https://market.yandex.ru/search?text=слон",
+            "url": f"https://market.yandex.ru/search?text={animals[current_animal_idx]}",
             "hide": True
         })
 
