@@ -1,11 +1,16 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import logging
 import json
+# импортируем функции из нашего второго файла geo
 from geo import get_country, get_distance, get_coordinates
 
 app = Flask(__name__)
 
-logging.basicConfig(level=logging.INFO, filename='app.log', format='%(asctime)s %(levelname)s %(name)s %(message)s')
+# Добавляем логирование в файл.
+# Чтобы найти файл, перейдите на pythonwhere в раздел files,
+# он лежит в корневой папке
+logging.basicConfig(level=logging.INFO, filename='app.log',
+                    format='%(asctime)s %(levelname)s %(name)s %(message)s')
 
 
 @app.route('/post', methods=['POST'])
@@ -20,26 +25,27 @@ def main():
     }
     handle_dialog(response, request.json)
     logging.info('Request: %r', response)
-    return json.dumps(response)
+    return jsonify(response)
 
 
 def handle_dialog(res, req):
     user_id = req['session']['user_id']
     if req['session']['new']:
-        res['response']['text'] = 'Привет! Я могу сказать в какой стране город или сказать расстояние между городами!'
+        res['response']['text'] = \
+            'Привет! Я могу показать город или сказать расстояние между городами!'
         return
+    # Получаем города из нашего
     cities = get_cities(req)
-    if len(cities) == 0:
-        country = get_country(cities[0])
-        if country is None:
-            res['response']['text'] = 'Не могу определить страну для этого города'
-        else:
-            res['response']['text'] = f'Этот город в стране - {country}'
+    if not cities:
+        res['response']['text'] = 'Ты не написал название ни одного города!'
+    elif len(cities) == 1:
+        res['response']['text'] = 'Этот город в стране - ' + \
+                                  get_country(cities[0])
     elif len(cities) == 2:
-        coord1 = get_coordinates(cities[0])
-        coord2 = get_coordinates(cities[1])
-        if coord1 is None or coord2 is None:
-            res['response']['text'] = 'Не могу определить координаты городов'
+        distance = get_distance(get_coordinates(
+            cities[0]), get_coordinates(cities[1]))
+        res['response']['text'] = 'Расстояние между этими городами: ' + \
+                                  str(round(distance)) + ' км.'
     else:
         res['response']['text'] = 'Слишком много городов!'
 
@@ -48,9 +54,8 @@ def get_cities(req):
     cities = []
     for entity in req['request']['nlu']['entities']:
         if entity['type'] == 'YANDEX.GEO':
-            if 'city' in entity['value'].keys():
+            if 'city' in entity['value']:
                 cities.append(entity['value']['city'])
-
     return cities
 
 
