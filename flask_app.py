@@ -1,14 +1,11 @@
-from flask import Flask, request, jsonify
 import logging
-import json
-# импортируем функции из нашего второго файла geo
-from geo import get_country, get_distance, get_coordinates
+
+from flask import Flask, request, jsonify
+
+from geo import get_geo_info, get_distance
 
 app = Flask(__name__)
 
-# Добавляем логирование в файл.
-# Чтобы найти файл, перейдите на pythonwhere в раздел files,
-# он лежит в корневой папке
 logging.basicConfig(level=logging.INFO, filename='app.log',
                     format='%(asctime)s %(levelname)s %(name)s %(message)s')
 
@@ -34,18 +31,15 @@ def handle_dialog(res, req):
         res['response']['text'] = \
             'Привет! Я могу показать город или сказать расстояние между городами!'
         return
-    # Получаем города из нашего
+
     cities = get_cities(req)
     if not cities:
         res['response']['text'] = 'Ты не написал название ни одного города!'
     elif len(cities) == 1:
-        res['response']['text'] = 'Этот город в стране - ' + \
-                                  get_country(cities[0])
+        res['response']['text'] = 'Этот город в стране - ' + get_geo_info(cities[0], 'country')
     elif len(cities) == 2:
-        distance = get_distance(get_coordinates(
-            cities[0]), get_coordinates(cities[1]))
-        res['response']['text'] = 'Расстояние между этими городами: ' + \
-                                  str(round(distance)) + ' км.'
+        distance = get_distance(get_geo_info(cities[0], 'coordinates'), get_geo_info(cities[1], 'coordinates'))
+        res['response']['text'] = 'Расстояние между этими городами: ' + str(round(distance)) + ' км.'
     else:
         res['response']['text'] = 'Слишком много городов!'
 
