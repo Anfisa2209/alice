@@ -69,13 +69,14 @@ def handle_dialog(res, req):
                 }
             ]
     else:
+        name = sessionStorage[user_id]["first_name"].title()
         if not sessionStorage[user_id]['game_started']:
             if 'да' in req['request']['nlu']['tokens']:
                 # если пользователь согласен, то проверяем не отгадал ли он уже все города.
                 # По схеме можно увидеть, что здесь окажутся и пользователи, которые уже отгадывали города
                 if len(sessionStorage[user_id]['guessed_cities']) == 3:
                     # если все три города отгаданы, то заканчиваем игру
-                    res['response']['text'] = 'Ты отгадал все города!'
+                    res['response']['text'] = f'{name}, ты отгадал все города!'
                     res['response']['end_session'] = True
 
                 else:
@@ -86,12 +87,27 @@ def handle_dialog(res, req):
                     # функция, которая выбирает город для игры и показывает фото
                     play_game(res, req)
             elif 'нет' in req['request']['nlu']['tokens']:
-                res['response']['text'] = 'Ну и ладно!'
+                res['response']['text'] = f'Ну и ладно! Пока, {name}'
                 res['response']['end_session'] = True
             elif 'помощь' in req['request']['nlu']['tokens']:
-                res['response']['text'] = 'Помоги себе сам! Скажи "ДА" и узнаешь.'
+                res['response']['text'] = f'{name}, помоги себе сам(а)! ' \
+                                          f'Или скажи "ДА" и узнаешь.'
             elif 'Покажи город на карте' == req['request']['original_utterance']:
-                res['response']['text'] = 'Разве не прекрасный город! Сыграем еще?'
+                res['response']['text'] = f'{name}, разве не прекрасный город! Сыграем еще?'
+                res['response']['buttons'] = [
+                    {
+                        'title': 'Да',
+                        'hide': True
+                    },
+                    {
+                        'title': 'Нет',
+                        'hide': True
+                    },
+                    {
+                        'title': 'Помощь',
+                        'hide': True
+                    }
+                ]
             elif get_country(req):
                 guess_country(res, req)
             else:
@@ -117,13 +133,14 @@ def handle_dialog(res, req):
 def guess_country(res, req):
     user_id = req['session']['user_id']
     city = sessionStorage[user_id]['city']
+    name = sessionStorage[user_id]["first_name"].title()
     if get_country(req):
         user_answer = get_country(req).lower()
         right_answer = get_geo_info(city, 'country').lower()
 
         possible_answers = countries.get(right_answer, []) + [right_answer]
         if user_answer in possible_answers:
-            res['response']['text'] = 'Правильно! Сыграем еще?'
+            res['response']['text'] = f'Правильно, {name}! Сыграем еще?'
             sessionStorage[user_id]['game_started'] = False
             res['response']['buttons'] = [
                 {
@@ -142,7 +159,8 @@ def guess_country(res, req):
             ]
             return
         else:
-            res['response']['text'] = f'К сожалению, нет. Это {get_geo_info(city, "country").title()}. Сыграем ещё?'
+            res['response']['text'] = f'К сожалению, {name}, неправильно.' \
+                                      f' Это {get_geo_info(city, "country").title()}. Сыграем ещё?'
             sessionStorage[user_id]['game_started'] = False
             res['response']['buttons'] = [
                 {
@@ -166,6 +184,7 @@ def guess_country(res, req):
 def play_game(res, req):
     user_id = req['session']['user_id']
     attempt = sessionStorage[user_id]['attempt']
+    name = sessionStorage[user_id]["first_name"].title()
     if attempt == 1:
         # если попытка первая, то случайным образом выбираем город для гадания
         city = random.choice(list(cities))
@@ -178,11 +197,11 @@ def play_game(res, req):
         # добавляем в ответ картинку
         res['response']['card'] = {}
         res['response']['card']['type'] = 'BigImage'
-        res['response']['card']['title'] = 'Что это за город?'
+        res['response']['card']['title'] = f'Что это за город, {name}?'
         res['response']['card']['image_id'] = cities[city][attempt - 1]
         res['response']['text'] = 'Тогда сыграем!'
     elif 'помощь' in req['request']['nlu']['tokens']:
-        res['response']['text'] = 'Просто назови город'
+        res['response']['text'] = f'Просто назови город, {name}'
     else:
         # сюда попадаем, если попытка отгадать не первая
         city = sessionStorage[user_id]['city']
@@ -190,7 +209,8 @@ def play_game(res, req):
         if get_city(req) == city:
             # если да, то добавляем город к sessionStorage[user_id]['guessed_cities'] и
             # отправляем пользователя на второй круг. Обратите внимание на этот шаг на схеме.
-            res['response']['text'] = 'Правильно! А в какой стране находится этот город?'
+            res['response']['text'] = f'Правильно, {name}! ' \
+                                      f'А в какой стране находится этот город?'
             sessionStorage[user_id]['guessed_cities'].append(city)
             sessionStorage[user_id]['game_started'] = False
             return
@@ -203,7 +223,8 @@ def play_game(res, req):
                 # В этом случае говорим ответ пользователю,
                 # добавляем город к sessionStorage[user_id]['guessed_cities'] и отправляем его на второй круг.
                 # Обратите внимание на этот шаг на схеме.
-                res['response']['text'] = f'Вы пытались. Это {city.title()}. А в какой стране этот город?'
+                res['response']['text'] = f'Вы пытались. Это {city.title()}. ' \
+                                          f'{name}, а в какой стране этот город?'
                 sessionStorage[user_id]['game_started'] = False
                 sessionStorage[user_id]['guessed_cities'].append(city)
                 res['response']['buttons'] = [
@@ -226,7 +247,7 @@ def play_game(res, req):
                 # иначе показываем следующую картинку
                 res['response']['card'] = {}
                 res['response']['card']['type'] = 'BigImage'
-                res['response']['card']['title'] = 'Неправильно. Вот тебе дополнительное фото'
+                res['response']['card']['title'] = f'Неправильно, {name}. Вот тебе дополнительное фото'
                 res['response']['card']['image_id'] = cities[city][attempt - 1]
                 res['response']['text'] = 'А вот и не угадал!'
     sessionStorage[user_id]['attempt'] += 1
