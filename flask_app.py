@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 import logging
 import random
 
+from geo import get_geo_info
+
 app = Flask(__name__)
 
 logging.basicConfig(level=logging.INFO)
@@ -11,6 +13,8 @@ cities = {
     'париж': ['1533899/11fb67d6149a91c9ca14', '997614/944468e6d95831ac59fe'],
     'нью-йорк': ["997614/dd67091764b490dfb4d8", '1533899/95dc7d7e02791a0b8fc0']
 }
+countries = {
+    'соединённые штаты америки': ['сша', 'соединенные штаты америки', 'соединенные штаты', 'америка', 'usa']}
 sessionStorage = {}
 
 
@@ -88,6 +92,8 @@ def handle_dialog(res, req):
                 res['response']['text'] = 'Помоги себе сам! Скажи "ДА" и узнаешь.'
             elif 'Покажи город на карте' == req['request']['original_utterance']:
                 res['response']['text'] = 'Разве не прекрасный город! Сыграем еще?'
+            elif get_country(req):
+                guess_country(res, req)
             else:
                 res['response']['text'] = 'Не поняла ответа! Так да или нет?'
                 res['response']['buttons'] = [
@@ -106,6 +112,55 @@ def handle_dialog(res, req):
                 ]
         else:
             play_game(res, req)
+
+
+def guess_country(res, req):
+    user_id = req['session']['user_id']
+    city = sessionStorage[user_id]['city']
+    if get_country(req):
+        user_answer = get_country(req).lower()
+        right_answer = get_geo_info(city, 'country').lower()
+
+        possible_answers = countries.get(right_answer, []) + [right_answer]
+        if user_answer in possible_answers:
+            res['response']['text'] = 'Правильно! Сыграем еще?'
+            sessionStorage[user_id]['game_started'] = False
+            res['response']['buttons'] = [
+                {
+                    'title': 'Да',
+                    'hide': True
+                },
+                {
+                    'title': 'Нет',
+                    'hide': True
+                },
+                {
+                    'title': 'Покажи город на карте',
+                    'hide': True,
+                    'url': f"https://yandex.ru/maps/?mode=search&text={sessionStorage[user_id]['city']}"
+                }
+            ]
+            return
+        else:
+            res['response']['text'] = f'К сожалению, нет. Это {get_geo_info(city, "country").title()}. Сыграем ещё?'
+            sessionStorage[user_id]['game_started'] = False
+            res['response']['buttons'] = [
+                {
+                    'title': 'Помощь',
+                    'hide': True
+                },
+                {
+                    'title': 'Нет',
+                    'hide': True
+                },
+                {
+                    'title': 'Покажи город на карте',
+                    'hide': True,
+                    'url': f"https://yandex.ru/maps/?mode=search&text={sessionStorage[user_id]['city']}"
+                }
+            ]
+            return
+    return
 
 
 def play_game(res, req):
@@ -135,25 +190,12 @@ def play_game(res, req):
         if get_city(req) == city:
             # если да, то добавляем город к sessionStorage[user_id]['guessed_cities'] и
             # отправляем пользователя на второй круг. Обратите внимание на этот шаг на схеме.
-            res['response']['text'] = 'Правильно! Сыграем ещё?'
+            res['response']['text'] = 'Правильно! А в какой стране находится этот город?'
             sessionStorage[user_id]['guessed_cities'].append(city)
             sessionStorage[user_id]['game_started'] = False
-            res['response']['buttons'] = [
-                {
-                    'title': 'Да',
-                    'hide': True
-                },
-                {
-                    'title': 'Нет',
-                    'hide': True
-                },
-                {
-                    'title': 'Покажи город на карте',
-                    'hide': True,
-                    'url': f"https://yandex.ru/maps/?mode=search&text={sessionStorage[user_id]['city']}"
-                }
-            ]
             return
+        elif get_country(req):
+            guess_country(res, req)
         else:
             # если нет
             if attempt == 3:
@@ -161,7 +203,7 @@ def play_game(res, req):
                 # В этом случае говорим ответ пользователю,
                 # добавляем город к sessionStorage[user_id]['guessed_cities'] и отправляем его на второй круг.
                 # Обратите внимание на этот шаг на схеме.
-                res['response']['text'] = f'Вы пытались. Это {city.title()}. Сыграем ещё?'
+                res['response']['text'] = f'Вы пытались. Это {city.title()}. А в какой стране этот город?'
                 sessionStorage[user_id]['game_started'] = False
                 sessionStorage[user_id]['guessed_cities'].append(city)
                 res['response']['buttons'] = [
@@ -200,6 +242,12 @@ def get_first_name(req):
     for entity in req['request']['nlu']['entities']:
         if entity['type'] == 'YANDEX.FIO':
             return entity['value'].get('first_name', None)
+
+
+def get_country(req):
+    for entity in req['request']['nlu']['entities']:
+        if entity['type'] == 'YANDEX.GEO':
+            return entity['value'].get('country', None)
 
 
 if __name__ == '__main__':
