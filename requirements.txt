@@ -6,5 +6,4 @@ itsdangerous
 Jinja2
 MarkupSafe
 Werkzeug
-requests
-urllib3==1.26.6
+googletrans==4.0.0-rc1
