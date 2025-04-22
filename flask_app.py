@@ -32,10 +32,10 @@ def main():
 
 def handle_dialog(res, req):
     if req['session']['new']:
-        res['response']['text'] = 'Привет! Я могу перевести что-нибудь!'
+        res['response']['text'] = 'Привет! Я могу перевести что-нибудь! Для этого напиши: переведи слово <слово>'
         res['response']['buttons'] = [
             {
-                'title': 'Покажи',
+                'title': 'Покажи как',
                 'hide': True
             },
             {
@@ -44,15 +44,36 @@ def handle_dialog(res, req):
             }
         ]
         return
-    if 'Помощь' in req['request']['nlu']['tokens']:
+    if 'помощь' in req['request']['nlu']['tokens']:
         res['response']['text'] = 'Введи: переведи слово <слово> - и я переведу'
+        res['response']['buttons'] = [
+            {
+                'title': 'Переведи слово Привет',
+                'hide': True
+            },
+            {
+                'title': 'Помощь',
+                'hide': True
+            }
+        ]
         return
-    elif 'Покажи' in req['request']['nlu']['tokens']:
+    elif 'покажи' in req['request']['nlu']['tokens']:
         result = translate(word='Вот так я умею переводить!', dest='multi')
-        res['response']['text'] = result + "Так что переведем?"
+        res['response']['text'] = result + "\nТак что переведем?"
+        res['response']['buttons'] = [
+            {
+                'title': 'Переведи слово Привет',
+                'hide': True
+            },
+            {
+                'title': 'Помощь',
+                'hide': True
+            }
+        ]
         return
-    elif "переведи слово" in req['request']["original_utterance"]:
+    elif "переведи слово" in req['request']["original_utterance"].lower():
         word = req['request']["original_utterance"].split()[-1]
+        res['response']['text'] = "Перевожу... (это займет пару секунд)"
         result = translate(word=word, dest='multi')
         res['response']['text'] = result
         return
@@ -70,3 +91,7 @@ def translate(word, dest):
             result += f"На {description}: " + translation.text + '\n'
 
     return result
+
+
+if __name__ == '__main__':
+    app.run()
